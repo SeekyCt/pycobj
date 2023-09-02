@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Generic, Optional, Tuple, TypeVar
 
 from pycparser import c_ast as ca
 from m2c.c_types import (
@@ -19,6 +19,7 @@ from .memory.memoryaccessor import Addr, MemoryAccessor
 
 
 TypeName = str
+TypeType = TypeVar("TypeType", bound="Type")
 
 
 class TypeException(Exception):
@@ -115,6 +116,15 @@ class Type(ABC):
 
 
 class IntegerType(Type):
+    size: int
+    signed: bool
+
+    def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
+        super().__init__(typespace, ctype, name)
+
+        self.size = primitive_size(self.ctype.type)
+        self.signed = "signed" in self.ctype.type.names
+
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "IntegerObject":
         return IntegerObject(self, memory, addr)
 
@@ -138,51 +148,42 @@ class StructType(Type):
         return StructUnionObject(self, memory, addr)
 
 
-class Object(ABC):
+class Object(ABC, Generic[TypeType]):
     """Instance of a type in a system"""
 
-    _t: Type
+    _t: TypeType
     _memory: MemoryAccessor
     _addr: Addr
 
-    def __init__(self, t: Type, memory: MemoryAccessor, addr: Addr):
+    def __init__(self, t: TypeType, memory: MemoryAccessor, addr: Addr):
         self._memory = memory
         self._t = t
         self._addr = addr
+    
+    # TODO: generic repr
 
 
-class IntegerObject(Object):
+class IntegerObject(Object[IntegerType]):
     """Access an object as an integer"""
 
-    _size: int
-    _signed: bool
-
     # TODO: don't assume endian
-
-    def __init__(self, t: Type, memory: MemoryAccessor, addr: Addr):
-        super().__init__(t, memory, addr)
-        self._size = primitive_size(self._t.ctype.type)
-        self._signed = "signed" in self._t.ctype.type.names
 
     def __repr__(self) -> str:
         return f"IntegerObject({' '.join(self._t.ctype.type.names)}, 0x{self._addr:x}, {self.value})"
 
     @property
     def value(self) -> int:
-        data = self._memory.read(self._addr, self._size)
-        return int.from_bytes(data, "big", signed=self._signed)
+        data = self._memory.read(self._addr, self._t.size)
+        return int.from_bytes(data, "big", signed=self._t.signed)
 
     @value.setter
     def value(self, value: int):
-        data = int.to_bytes(value, self._size, "big", signed=self._signed)
+        data = int.to_bytes(value, self._t.size, "big", signed=self._t.signed)
         self._memory.write(self._addr, data)
 
 
-class StructUnionObject(Object):
+class StructUnionObject(Object[StructType]):
     """Access an object as a struct or union"""
-
-    # TODO: generic object?
-    _t: StructType
 
     def __repr__(self) -> str:
         return f"StructUnionObject({self._t.name}, 0x{self._addr:x})"
