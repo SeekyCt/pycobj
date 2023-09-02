@@ -21,6 +21,7 @@ from .memory.memoryaccessor import Addr, MemoryAccessor
 
 TypeName = str
 TypeType = TypeVar("TypeType", bound="Type")
+CTypeType = TypeVar("CTypeType", bound=CType)
 
 
 class TypeException(Exception):
@@ -82,11 +83,11 @@ class TypeSpace:
         return self.ctype_pool[ctype]
 
 
-class Type(ABC):
+class Type(ABC, Generic[CTypeType]):
     """Pycobj wrapper for a type"""
 
     typespace: TypeSpace
-    ctype: CType
+    ctype: CTypeType
     name: Optional[str]
     size: int
 
@@ -94,7 +95,7 @@ class Type(ABC):
         return f"{self.__class__.__name__}({self.name})"
 
     def __init__(
-        self, typespace: TypeSpace, ctype: CType, name: Optional[str], size: int
+        self, typespace: TypeSpace, ctype: CTypeType, name: Optional[str], size: int
     ):
         self.typespace = typespace
         self.ctype = ctype
@@ -102,32 +103,34 @@ class Type(ABC):
         self.size = size
 
     @classmethod
-    def new(cls, typespace: TypeSpace, ctype: CType, name: Optional[str]):
+    def new(
+        cls, typespace: TypeSpace, ctype: CTypeType, name: Optional[str]
+    ) -> "Type[CTypeType]":
         if isinstance(ctype, ca.TypeDecl):
             if isinstance(ctype.type, ca.Struct):
                 ret_cls = StructType
             elif isinstance(ctype.type, ca.IdentifierType):
                 ret_cls = IntegerType
             else:
-                assert 0, ctype
+                raise NotImplementedError()
         elif isinstance(ctype, ca.ArrayDecl):
             ret_cls = ArrayType
         elif isinstance(ctype, ca.PtrDecl):
             ret_cls = PointerType
         else:
-            assert 0, ctype
+            raise NotImplementedError()
 
-        return ret_cls(typespace, ctype, name)
+        return ret_cls(typespace, ctype, name) # type: ignore
 
     @abstractmethod
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "Object":
         raise NotImplementedError
 
 
-class IntegerType(Type):
+class IntegerType(Type[ca.TypeDecl]):
     signed: bool
 
-    def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl, name: Optional[str]):
         size = primitive_size(ctype.type)
         super().__init__(typespace, ctype, name, size)
 
@@ -137,11 +140,11 @@ class IntegerType(Type):
         return IntegerObject(self, memory, addr)
 
 
-class StructType(Type):
+class StructType(Type[ca.TypeDecl]):
     struct: Struct
     fields: dict[str, Tuple[int, StructField]]
 
-    def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl, name: Optional[str]):
         self.struct = parse_struct(ctype.type, typespace.typemap)
         super().__init__(typespace, ctype, name, self.struct.size)
 
@@ -156,7 +159,7 @@ class StructType(Type):
         return StructUnionObject(self, memory, addr)
 
 
-class ArrayType(Type):
+class ArrayType(Type[ca.ArrayDecl]):
     item_type: Type
     length: int
 
@@ -169,7 +172,7 @@ class ArrayType(Type):
         return ArrayObject(self, memory, addr)
 
 
-class PointerType(Type):
+class PointerType(Type[ca.PtrDecl]):
     item_type: Type
 
     def __init__(self, typespace: TypeSpace, ctype: ca.PtrDecl, name: Optional[str]):
@@ -254,7 +257,7 @@ class PointerObject(Object[PointerType]):
 
     def deref(self) -> Object:
         return self._t.item_type.make_object(self._memory, self.value)
-    
+
     def __getitem__(self, idx: int) -> Object:
         addr = self.value + idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, addr)
