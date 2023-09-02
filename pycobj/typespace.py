@@ -10,6 +10,7 @@ from m2c.c_types import (
     TypeMap,
     build_typemap,
     is_struct_type,
+    parse_constant_int,
     parse_struct,
     primitive_size,
     resolve_typedefs,
@@ -87,14 +88,18 @@ class Type(ABC):
     typespace: TypeSpace
     ctype: CType
     name: Optional[str]
+    size: int
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.name})"
 
-    def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
+    def __init__(
+        self, typespace: TypeSpace, ctype: CType, name: Optional[str], size: int
+    ):
         self.typespace = typespace
         self.ctype = ctype
         self.name = name
+        self.size = size
 
     @classmethod
     def new(cls, typespace: TypeSpace, ctype: CType, name: Optional[str]):
@@ -105,6 +110,8 @@ class Type(ABC):
                 ret_cls = IntegerType
             else:
                 assert 0, ctype
+        elif isinstance(ctype, ca.ArrayDecl):
+            ret_cls = ArrayType
         else:
             assert 0, ctype
 
@@ -116,13 +123,12 @@ class Type(ABC):
 
 
 class IntegerType(Type):
-    size: int
     signed: bool
 
     def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
-        super().__init__(typespace, ctype, name)
+        size = primitive_size(ctype.type)
+        super().__init__(typespace, ctype, name, size)
 
-        self.size = primitive_size(self.ctype.type)
         self.signed = "signed" in self.ctype.type.names
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "IntegerObject":
@@ -134,11 +140,11 @@ class StructType(Type):
     fields: dict[str, Tuple[int, StructField]]
 
     def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
-        super().__init__(typespace, ctype, name)
+        self.struct = parse_struct(ctype.type, typespace.typemap)
+        super().__init__(typespace, ctype, name, self.struct.size)
 
         assert is_struct_type(self.ctype, self.typespace.typemap)
 
-        self.struct = parse_struct(self.ctype.type, self.typespace.typemap)
         self.fields = {}
         for offset, fields in self.struct.fields.items():
             for field in fields:
@@ -146,6 +152,19 @@ class StructType(Type):
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "StructUnionObject":
         return StructUnionObject(self, memory, addr)
+
+
+class ArrayType(Type):
+    item_type: Type
+    length: int
+
+    def __init__(self, typespace: TypeSpace, ctype: ca.ArrayDecl, name: Optional[str]):
+        self.length = parse_constant_int(ctype.dim, typespace.typemap)
+        self.item_type = typespace.get_from_ctype(ctype.type)
+        super().__init__(typespace, ctype, name, self.length * self.item_type.size)
+
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "ArrayObject":
+        return ArrayObject(self, memory, addr)
 
 
 class Object(ABC, Generic[TypeType]):
@@ -159,7 +178,7 @@ class Object(ABC, Generic[TypeType]):
         self._memory = memory
         self._t = t
         self._addr = addr
-    
+
     # TODO: generic repr
 
 
@@ -194,3 +213,12 @@ class StructUnionObject(Object[StructType]):
         offset, field = self._t.fields[name]
         t = self._t.typespace.get_from_ctype(field.type)
         return t.make_object(self._memory, self._addr + offset)
+
+
+class ArrayObject(Object[ArrayType]):
+    def __repr__(self) -> str:
+        return f"ArrayObject({self._t.item_type.name}, 0x{self._addr:x})"
+
+    def __getitem__(self, idx: int) -> Object:
+        offset = idx * self._t.item_type.size
+        return self._t.item_type.make_object(self._memory, self._addr + offset)

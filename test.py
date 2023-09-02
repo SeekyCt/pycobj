@@ -9,6 +9,7 @@ wpad_work_t = ts.get("WpadWork")
 wpad_work = wpad_work_t.make_object(ram, 0x8052_8F48)
 print(wpad_work)
 print(wpad_work.flags)
+print(wpad_work.unknown_0x4[2])
 
 map_work_t = ts.get("MapWork")
 map_work = map_work_t.make_object(ram, 0x8050_BC20)
