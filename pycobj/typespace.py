@@ -30,7 +30,7 @@ class TypeException(Exception):
 class TypeSpace:
     """A collection of types for a program"""
 
-    # M2C parsing of C
+    # M2C parsing of types in context
     typemap: TypeMap
 
     # Pool of pycobj type objects
@@ -116,7 +116,7 @@ class Type(ABC):
 
 class IntegerType(Type):
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "IntegerObject":
-        return IntegerObject(memory, self, addr)
+        return IntegerObject(self, memory, addr)
 
 
 class StructType(Type):
@@ -135,17 +135,17 @@ class StructType(Type):
                 self.fields[field.name] = (offset, field)
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "StructUnionObject":
-        return StructUnionObject(memory, self, addr)
+        return StructUnionObject(self, memory, addr)
 
 
 class Object(ABC):
     """Instance of a type in a system"""
 
-    _memory: MemoryAccessor
     _t: Type
+    _memory: MemoryAccessor
     _addr: Addr
 
-    def __init__(self, memory: MemoryAccessor, t: Type, addr: Addr):
+    def __init__(self, t: Type, memory: MemoryAccessor, addr: Addr):
         self._memory = memory
         self._t = t
         self._addr = addr
@@ -159,8 +159,8 @@ class IntegerObject(Object):
 
     # TODO: don't assume endian
 
-    def __init__(self, memory: MemoryAccessor, t: Type, addr: Addr):
-        super().__init__(memory, t, addr)
+    def __init__(self, t: Type, memory: MemoryAccessor, addr: Addr):
+        super().__init__(t, memory, addr)
         self._size = primitive_size(self._t.ctype.type)
         self._signed = "signed" in self._t.ctype.type.names
 
