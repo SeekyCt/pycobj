@@ -62,8 +62,7 @@ class StructUnionObject(Object):
     """Access an object as a struct or union"""
 
     def __repr__(self) -> str:
-        # TODO: declname may not exist
-        return f"StructUnionObject({self._t.ctype.declname}, 0x{self._addr:x})"
+        return f"StructUnionObject({self._t.name}, 0x{self._addr:x})"
 
     def __getattr__(self, name: str) -> Object:
         if name not in self._t.fields:

@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 from pycparser import c_ast as ca
 from m2c.c_types import (
@@ -47,12 +47,19 @@ class TypeSpace:
         self.name_pool = {}
         self.ctype_pool = {}
 
-    def _add(self, name: str, ctype: CType):
+    def _add(self, ctype: CType, name: Optional[str] = None):
         """Adds a new type to the type pool"""
 
-        t = Type(self, ctype)
-        self.name_pool[name] = t
-        self.ctype_pool[ctype] = t
+        # Ensure the type is in the ctype pool
+        if ctype in self.ctype_pool:
+            t = self.ctype_pool[ctype]
+        else:
+            t = Type(self, ctype, name)
+            self.ctype_pool[ctype] = t
+
+        # Add to name pool if possible
+        if name is not None:
+            self.name_pool[name] = t
 
     def get(self, name: TypeName) -> "Type":
         """Gets the Type for a name"""
@@ -64,7 +71,7 @@ class TypeSpace:
                 raise TypeException(f"Type {name} not found")
             ctype = resolve_typedefs(ctype, self.typemap)
 
-            self._add(name, ctype)
+            self._add(ctype, name)
 
         return self.name_pool[name]
 
@@ -73,8 +80,7 @@ class TypeSpace:
 
         ctype = resolve_typedefs(ctype, self.typemap)
         if ctype not in self.ctype_pool:
-            # TODO: declname may not exist
-            self._add(ctype.declname, ctype)
+            self._add(ctype)
 
         return self.ctype_pool[ctype]
 
@@ -84,12 +90,14 @@ class Type:
 
     typespace: TypeSpace
     ctype: CType
+    name: Optional[str]
     struct: Struct
     fields: dict[str, Tuple[int, StructField]]
 
-    def __init__(self, typespace: TypeSpace, ctype: CType):
+    def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
         self.typespace = typespace
         self.ctype = ctype
+        self.name = name
 
         # TODO: handle this better (subclass by category?)
         if is_struct_type(self.ctype, self.typespace.typemap):
@@ -100,8 +108,7 @@ class Type:
                     self.fields[field.name] = (offset, field)
 
     def __str__(self):
-        # TODO: declname may not exist
-        return f"Type({self.ctype.declname})"
+        return f"Type({self.name})"
 
     def get_category(self) -> TypeCategory:
         if isinstance(self.ctype.type, ca.Struct):
