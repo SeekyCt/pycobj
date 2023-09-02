@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -11,19 +11,14 @@ from m2c.c_types import (
     build_typemap,
     is_struct_type,
     parse_struct,
+    primitive_size,
     resolve_typedefs,
 )
 
+from .memory.memoryaccessor import Addr, MemoryAccessor
+
 
 TypeName = str
-
-
-class TypeCategory(Enum):
-    INTEGER = auto()
-    STRUCT = auto()
-    UNION = auto()
-    POINTER = auto()
-    ARRAY = auto()
 
 
 class TypeException(Exception):
@@ -54,7 +49,7 @@ class TypeSpace:
         if ctype in self.ctype_pool:
             t = self.ctype_pool[ctype]
         else:
-            t = Type(self, ctype, name)
+            t = Type.new(self, ctype, name)
             self.ctype_pool[ctype] = t
 
         # Add to name pool if possible
@@ -85,35 +80,116 @@ class TypeSpace:
         return self.ctype_pool[ctype]
 
 
-class Type:
+class Type(ABC):
     """Pycobj wrapper for a type"""
 
     typespace: TypeSpace
     ctype: CType
     name: Optional[str]
-    struct: Struct
-    fields: dict[str, Tuple[int, StructField]]
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.name})"
 
     def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
         self.typespace = typespace
         self.ctype = ctype
         self.name = name
 
-        # TODO: handle this better (subclass by category?)
-        if is_struct_type(self.ctype, self.typespace.typemap):
-            self.struct = parse_struct(self.ctype.type, self.typespace.typemap)
-            self.fields = {}
-            for offset, fields in self.struct.fields.items():
-                for field in fields:
-                    self.fields[field.name] = (offset, field)
-
-    def __str__(self):
-        return f"Type({self.name})"
-
-    def get_category(self) -> TypeCategory:
-        if isinstance(self.ctype.type, ca.Struct):
-            return TypeCategory.STRUCT
-        elif isinstance(self.ctype.type, ca.IdentifierType):
-            return TypeCategory.INTEGER
+    @classmethod
+    def new(cls, typespace: TypeSpace, ctype: CType, name: Optional[str]):
+        if isinstance(ctype, ca.TypeDecl):
+            if isinstance(ctype.type, ca.Struct):
+                ret_cls = StructType
+            elif isinstance(ctype.type, ca.IdentifierType):
+                ret_cls = IntegerType
+            else:
+                assert 0, ctype
         else:
-            raise NotImplementedError(self.ctype)
+            assert 0, ctype
+
+        return ret_cls(typespace, ctype, name)
+
+    @abstractmethod
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "Object":
+        raise NotImplementedError
+
+
+class IntegerType(Type):
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "IntegerObject":
+        return IntegerObject(memory, self, addr)
+
+
+class StructType(Type):
+    struct: Struct
+    fields: dict[str, Tuple[int, StructField]]
+
+    def __init__(self, typespace: TypeSpace, ctype: CType, name: Optional[str]):
+        super().__init__(typespace, ctype, name)
+
+        assert is_struct_type(self.ctype, self.typespace.typemap)
+
+        self.struct = parse_struct(self.ctype.type, self.typespace.typemap)
+        self.fields = {}
+        for offset, fields in self.struct.fields.items():
+            for field in fields:
+                self.fields[field.name] = (offset, field)
+
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "StructUnionObject":
+        return StructUnionObject(memory, self, addr)
+
+
+class Object(ABC):
+    """Instance of a type in a system"""
+
+    _memory: MemoryAccessor
+    _t: Type
+    _addr: Addr
+
+    def __init__(self, memory: MemoryAccessor, t: Type, addr: Addr):
+        self._memory = memory
+        self._t = t
+        self._addr = addr
+
+
+class IntegerObject(Object):
+    """Access an object as an integer"""
+
+    _size: int
+    _signed: bool
+
+    # TODO: don't assume endian
+
+    def __init__(self, memory: MemoryAccessor, t: Type, addr: Addr):
+        super().__init__(memory, t, addr)
+        self._size = primitive_size(self._t.ctype.type)
+        self._signed = "signed" in self._t.ctype.type.names
+
+    def __repr__(self) -> str:
+        return f"IntegerObject({' '.join(self._t.ctype.type.names)}, 0x{self._addr:x}, {self.value})"
+
+    @property
+    def value(self) -> int:
+        data = self._memory.read(self._addr, self._size)
+        return int.from_bytes(data, "big", signed=self._signed)
+
+    @value.setter
+    def value(self, value: int):
+        data = int.to_bytes(value, self._size, "big", signed=self._signed)
+        self._memory.write(self._addr, data)
+
+
+class StructUnionObject(Object):
+    """Access an object as a struct or union"""
+
+    # TODO: generic object?
+    _t: StructType
+
+    def __repr__(self) -> str:
+        return f"StructUnionObject({self._t.name}, 0x{self._addr:x})"
+
+    def __getattr__(self, name: str) -> Object:
+        if name not in self._t.fields:
+            raise TypeException(f"{self} has no field {name}")
+        offset, field = self._t.fields[name]
+        t = self._t.typespace.get_from_ctype(field.type)
+        return t.make_object(self._memory, self._addr + offset)
