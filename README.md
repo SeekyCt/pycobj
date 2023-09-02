@@ -16,6 +16,8 @@ Experimental accessing of C data as python objects, based on types from an m2c c
     - [ ] Unions
     - [ ] Enums
     - [ ] Pointers
+        - [x] Reading
+        - [ ] Writing
     - [ ] Arrays
         - [x] Reading
         - [ ] Writing

@@ -112,6 +112,8 @@ class Type(ABC):
                 assert 0, ctype
         elif isinstance(ctype, ca.ArrayDecl):
             ret_cls = ArrayType
+        elif isinstance(ctype, ca.PtrDecl):
+            ret_cls = PointerType
         else:
             assert 0, ctype
 
@@ -165,6 +167,18 @@ class ArrayType(Type):
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "ArrayObject":
         return ArrayObject(self, memory, addr)
+
+
+class PointerType(Type):
+    item_type: Type
+
+    def __init__(self, typespace: TypeSpace, ctype: ca.PtrDecl, name: Optional[str]):
+        # TODO: unhardcode size
+        super().__init__(typespace, ctype, name, 4)
+        self.item_type = typespace.get_from_ctype(ctype.type)
+
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "PointerObject":
+        return PointerObject(self, memory, addr)
 
 
 class Object(ABC, Generic[TypeType]):
@@ -222,3 +236,25 @@ class ArrayObject(Object[ArrayType]):
     def __getitem__(self, idx: int) -> Object:
         offset = idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, self._addr + offset)
+
+
+class PointerObject(Object[PointerType]):
+    def __repr__(self) -> str:
+        return f"PointerObject({self._t.item_type.name}, 0x{self._addr:x})"
+
+    @property
+    def value(self) -> int:
+        data = self._memory.read(self._addr, self._t.size)
+        return int.from_bytes(data, "big")
+
+    @value.setter
+    def value(self, value: int):
+        data = int.to_bytes(value, self._t.size, "big")
+        self._memory.write(self._addr, data)
+
+    def deref(self) -> Object:
+        return self._t.item_type.make_object(self._memory, self.value)
+    
+    def __getitem__(self, idx: int) -> Object:
+        addr = self.value + idx * self._t.item_type.size
+        return self._t.item_type.make_object(self._memory, addr)

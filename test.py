@@ -16,4 +16,8 @@ map_work = map_work_t.make_object(ram, 0x8050_BC20)
 print(map_work.paperAmbColor.g.value)
 map_work.paperAmbColor.g.value += 1
 
+evt_work_t = ts.get("EvtWork")
+evt_work = evt_work_t.make_object(ram, 0x8050_c990)
+print(evt_work.entries[1].id)
+
 ram.save()
