@@ -5,7 +5,6 @@ from typing import Dict, Generic, Optional, Tuple, TypeVar
 from pycparser import c_ast as ca
 from m2c.c_types import (
     CType,
-    Struct,
     StructField,
     TypeMap,
     build_typemap,
@@ -37,49 +36,35 @@ class TypeSpace:
     typemap: TypeMap
 
     # Pool of pycobj type objects
-    name_pool: Dict[TypeName, "Type"]
     ctype_pool: Dict[CType, "Type"]
 
     def __init__(self, *contexts: str):
         self.typemap = build_typemap([Path(path) for path in contexts], False)
-        self.name_pool = {}
         self.ctype_pool = {}
 
-    def _add(self, ctype: CType, name: Optional[str] = None):
-        """Adds a new type to the type pool"""
+    def _from_ctype(self, ctype: CType):
+        """Gets the Type for a ctype, creating it if needed"""
 
-        # Ensure the type is in the ctype pool
-        if ctype in self.ctype_pool:
-            t = self.ctype_pool[ctype]
-        else:
-            t = Type.new(self, ctype, name)
-            self.ctype_pool[ctype] = t
+        if ctype not in self.ctype_pool:
+            self.ctype_pool[ctype] = Type.new(self, ctype)
 
-        # Add to name pool if possible
-        if name is not None:
-            self.name_pool[name] = t
+        return self.ctype_pool[ctype]
 
     def get(self, name: TypeName) -> "Type":
         """Gets the Type for a name"""
 
-        if name not in self.name_pool:
-            # TODO: support non-typedef'd?
-            ctype = self.typemap.typedefs.get(name)
-            if ctype is None:
-                raise TypeException(f"Type {name} not found")
+        # TODO: support non-typedef'd?
+        ctype = self.typemap.typedefs.get(name)
+        if ctype is None:
+            raise TypeException(f"Type {name} not found")
 
-            self._add(ctype, name)
-
-        return self.name_pool[name]
+        return self._from_ctype(ctype)
 
     def get_from_ctype(self, ctype: CType) -> "Type":
         """Gets the Type for a ctype"""
 
         ctype = resolve_typedefs(ctype, self.typemap)
-        if ctype not in self.ctype_pool:
-            self._add(ctype)
-
-        return self.ctype_pool[ctype]
+        return self._from_ctype(ctype)
 
     def get_from_var(self, name: str) -> "Type":
         """Gets the type from a global variable"""
@@ -88,10 +73,7 @@ class TypeSpace:
         if ctype is None:
             raise TypeException(f"Variable {name} not found")
         ctype = resolve_typedefs(ctype, self.typemap)
-        if ctype not in self.ctype_pool:
-            self._add(ctype)
-        
-        return self.ctype_pool[ctype]
+        return self._from_ctype(ctype)
 
 
 class Type(ABC, Generic[CTypeType]):
@@ -106,17 +88,15 @@ class Type(ABC, Generic[CTypeType]):
         return f"{self.__class__.__name__}({self.name})"
 
     def __init__(
-        self, typespace: TypeSpace, ctype: CTypeType, name: Optional[str], size: int
+        self, typespace: TypeSpace, ctype: CTypeType, size: int
     ):
         self.typespace = typespace
         self.ctype = ctype
-        self.name = name
+        self.name = None
         self.size = size
 
     @classmethod
-    def new(
-        cls, typespace: TypeSpace, ctype: CTypeType, name: Optional[str]
-    ) -> "Type[CTypeType]":
+    def new(cls, typespace: TypeSpace, ctype: CTypeType) -> "Type[CTypeType]":
         if isinstance(ctype, ca.TypeDecl):
             if isinstance(ctype.type, (ca.Struct, ca.Union)):
                 ret_cls = StructUnionType
@@ -133,7 +113,7 @@ class Type(ABC, Generic[CTypeType]):
         else:
             raise NotImplementedError(ctype)
 
-        return ret_cls(typespace, ctype, name) # type: ignore
+        return ret_cls(typespace, ctype) # type: ignore
 
     @abstractmethod
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "Object":
@@ -143,9 +123,9 @@ class Type(ABC, Generic[CTypeType]):
 class IntegerType(Type[ca.TypeDecl]):
     signed: bool
 
-    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl, name: Optional[str]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
         size = primitive_size(ctype.type)
-        super().__init__(typespace, ctype, name, size)
+        super().__init__(typespace, ctype, size)
 
         self.signed = "signed" in self.ctype.type.names
 
@@ -156,9 +136,9 @@ class IntegerType(Type[ca.TypeDecl]):
 class StructUnionType(Type[ca.TypeDecl]):
     fields: dict[str, Tuple[int, StructField]]
 
-    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl, name: Optional[str]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
         parsed = parse_struct(ctype.type, typespace.typemap)
-        super().__init__(typespace, ctype, name, parsed.size)
+        super().__init__(typespace, ctype, parsed.size)
 
         assert is_struct_type(self.ctype, self.typespace.typemap)
 
@@ -175,10 +155,10 @@ class ArrayType(Type[ca.ArrayDecl]):
     item_type: Type
     length: int
 
-    def __init__(self, typespace: TypeSpace, ctype: ca.ArrayDecl, name: Optional[str]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.ArrayDecl):
         self.length = parse_constant_int(ctype.dim, typespace.typemap)
         self.item_type = typespace.get_from_ctype(ctype.type)
-        super().__init__(typespace, ctype, name, self.length * self.item_type.size)
+        super().__init__(typespace, ctype, self.length * self.item_type.size)
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "ArrayObject":
         return ArrayObject(self, memory, addr)
@@ -187,9 +167,9 @@ class ArrayType(Type[ca.ArrayDecl]):
 class PointerType(Type[ca.PtrDecl]):
     item_type: Type
 
-    def __init__(self, typespace: TypeSpace, ctype: ca.PtrDecl, name: Optional[str]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.PtrDecl):
         # TODO: unhardcode size
-        super().__init__(typespace, ctype, name, 4)
+        super().__init__(typespace, ctype, 4)
         self.item_type = typespace.get_from_ctype(ctype.type)
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "PointerObject":
@@ -197,9 +177,9 @@ class PointerType(Type[ca.PtrDecl]):
 
 
 class FunctionType(Type[ca.FuncDecl]):
-    def __init__(self, typespace: TypeSpace, ctype: ca.FuncDecl, name: Optional[str]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.FuncDecl):
         # TODO: unhardcode size
-        super().__init__(typespace, ctype, name, 4)
+        super().__init__(typespace, ctype, 4)
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "FunctionObject":
         return FunctionObject(self, memory, addr)
