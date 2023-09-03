@@ -67,7 +67,6 @@ class TypeSpace:
             ctype = self.typemap.typedefs.get(name)
             if ctype is None:
                 raise TypeException(f"Type {name} not found")
-            ctype = resolve_typedefs(ctype, self.typemap)
 
             self._add(ctype, name)
 
