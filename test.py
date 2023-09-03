@@ -25,4 +25,9 @@ union_t = ts.get("TestUnion")
 union = union_t.make_object(ram, 0x8000_0000)
 print(hex(union.asInt.value), hex(union.asChar.value))
 
+first_rel_t = ts.get_from_var("firstRel")
+first_rel = first_rel_t.make_object(ram, 0x8000_30c8)
+relf = first_rel[0]
+print(relf.prolog[0])
+
 ram.save()

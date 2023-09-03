@@ -123,13 +123,15 @@ class Type(ABC, Generic[CTypeType]):
             elif isinstance(ctype.type, ca.IdentifierType):
                 ret_cls = IntegerType
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(type(ctype.type))
         elif isinstance(ctype, ca.ArrayDecl):
             ret_cls = ArrayType
         elif isinstance(ctype, ca.PtrDecl):
             ret_cls = PointerType
+        elif isinstance(ctype, ca.FuncDecl):
+            ret_cls = FunctionType
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(ctype)
 
         return ret_cls(typespace, ctype, name) # type: ignore
 
@@ -192,6 +194,15 @@ class PointerType(Type[ca.PtrDecl]):
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "PointerObject":
         return PointerObject(self, memory, addr)
+
+
+class FunctionType(Type[ca.FuncDecl]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.FuncDecl, name: Optional[str]):
+        # TODO: unhardcode size
+        super().__init__(typespace, ctype, name, 4)
+
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "FunctionObject":
+        return FunctionObject(self, memory, addr)
 
 
 class Object(ABC, Generic[TypeType]):
@@ -271,3 +282,8 @@ class PointerObject(Object[PointerType]):
     def __getitem__(self, idx: int) -> Object:
         addr = self.value + idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, addr)
+
+
+class FunctionObject(Object[FunctionType]):
+    def __repr__(self) -> str:
+        return f"FunctionObject({self._t.name}, 0x{self._addr:x})"
