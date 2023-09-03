@@ -10,17 +10,9 @@ Experimental accessing of C data as python objects, based on types from an m2c c
     - [ ] live console memory over network
 - Object types
     - [x] Integers
-    - [ ] Structs
-        - [x] Reading
-        - [ ] Writing
-    - [ ] Unions
-        - [x] Reading
-        - [ ] Writing
+    - [x] Structs
+    - [x] Unions
     - [ ] Enums
-    - [ ] Pointers
-        - [x] Reading
-        - [ ] Writing
-    - [ ] Arrays
-        - [x] Reading
-        - [ ] Writing
+    - [x] Pointers
+    - [x] Arrays
     - [ ] Strings
