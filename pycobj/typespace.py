@@ -217,16 +217,16 @@ class Object(ABC, Generic[TypeType]):
         self._t = t
         self._addr = addr
 
-    # TODO: generic repr
+    def _extra_repr(self) -> str:
+        return ""
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._t}@0x{self._addr:x}{self._extra_repr()})"
 
 class IntegerObject(Object[IntegerType]):
     """Access an object as an integer"""
 
     # TODO: don't assume endian
-
-    def __repr__(self) -> str:
-        return f"IntegerObject({' '.join(self._t.ctype.type.names)}, 0x{self._addr:x}, {self.value})"
 
     @property
     def value(self) -> int:
@@ -237,13 +237,13 @@ class IntegerObject(Object[IntegerType]):
     def value(self, value: int):
         data = int.to_bytes(value, self._t.size, "big", signed=self._t.signed)
         self._memory.write(self._addr, data)
+    
+    def _extra_repr(self) -> Optional[str]:
+        return f" = {self.value}"
 
 
 class StructUnionObject(Object[StructUnionType]):
     """Access an object as a struct or union"""
-
-    def __repr__(self) -> str:
-        return f"StructUnionObject({self._t.name}, 0x{self._addr:x})"
 
     def __getattr__(self, name: str) -> Object:
         if name not in self._t.fields:
@@ -254,18 +254,12 @@ class StructUnionObject(Object[StructUnionType]):
 
 
 class ArrayObject(Object[ArrayType]):
-    def __repr__(self) -> str:
-        return f"ArrayObject({self._t.item_type.name}, 0x{self._addr:x})"
-
     def __getitem__(self, idx: int) -> Object:
         offset = idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, self._addr + offset)
 
 
 class PointerObject(Object[PointerType]):
-    def __repr__(self) -> str:
-        return f"PointerObject({self._t.item_type.name}, 0x{self._addr:x})"
-
     @property
     def value(self) -> int:
         data = self._memory.read(self._addr, self._t.size)
@@ -283,7 +277,9 @@ class PointerObject(Object[PointerType]):
         addr = self.value + idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, addr)
 
+    def _extra_repr(self) -> Optional[str]:
+        return f" = 0x{self.value:x}"
+
 
 class FunctionObject(Object[FunctionType]):
-    def __repr__(self) -> str:
-        return f"FunctionObject({self._t.name}, 0x{self._addr:x})"
+    pass

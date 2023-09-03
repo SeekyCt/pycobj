@@ -27,6 +27,7 @@ print(hex(union.asInt.value), hex(union.asChar.value))
 
 first_rel_t = ts.get_from_var("firstRel")
 first_rel = first_rel_t.make_object(ram, 0x8000_30c8)
+print(first_rel)
 relf = first_rel[0]
 print(relf.prolog[0])
 
