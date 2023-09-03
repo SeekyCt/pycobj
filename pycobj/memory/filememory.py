@@ -55,5 +55,5 @@ class FileMemoryAccessor(MemoryAccessor):
 
     def save(self):
         for file in self.files:
-            with open(file.path, 'wb') as f:
+            with open(file.path, "wb") as f:
                 f.write(file.data)

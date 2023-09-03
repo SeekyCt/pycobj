@@ -87,9 +87,7 @@ class Type(ABC, Generic[CTypeType]):
     def __str__(self):
         return f"{self.__class__.__name__}({self.name})"
 
-    def __init__(
-        self, typespace: TypeSpace, ctype: CTypeType, size: int
-    ):
+    def __init__(self, typespace: TypeSpace, ctype: CTypeType, size: int):
         self.typespace = typespace
         self.ctype = ctype
         self.name = None
@@ -113,7 +111,7 @@ class Type(ABC, Generic[CTypeType]):
         else:
             raise NotImplementedError(ctype)
 
-        return ret_cls(typespace, ctype) # type: ignore
+        return ret_cls(typespace, ctype)  # type: ignore
 
     @abstractmethod
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "Object":
@@ -201,7 +199,10 @@ class Object(ABC, Generic[TypeType]):
         return ""
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self._t}@0x{self._addr:x}{self._extra_repr()})"
+        return (
+            f"{self.__class__.__name__}({self._t}@0x{self._addr:x}{self._extra_repr()})"
+        )
+
 
 class IntegerObject(Object[IntegerType]):
     """Access an object as an integer"""
@@ -217,7 +218,7 @@ class IntegerObject(Object[IntegerType]):
     def value(self, value: int):
         data = int.to_bytes(value, self._t.size, "big", signed=self._t.signed)
         self._memory.write(self._addr, data)
-    
+
     def _extra_repr(self) -> Optional[str]:
         return f" = {self.value}"
 

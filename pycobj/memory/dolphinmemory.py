@@ -13,14 +13,11 @@ class DolphinMemoryAccessor(MemoryAccessor):
         if not dme.is_hooked():
             print("DME not ready yet, sleeping")
             while not dme.is_hooked():
-                sleep(0.01) # 10ms
-                dme.hook()        
+                sleep(0.01)  # 10ms
+                dme.hook()
 
     def _validate_addr(self, addr: Addr):
-        return (
-            0x8000_0000 <= addr <= 0x817f_ffff or
-            0x9000_0000 <= addr <= 0x93FFFFFF
-        )
+        return 0x8000_0000 <= addr <= 0x817F_FFFF or 0x9000_0000 <= addr <= 0x93FFFFFF
 
     def read(self, addr: Addr, length: int) -> bytes:
         if not self._validate_addr(addr):
