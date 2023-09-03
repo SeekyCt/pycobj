@@ -118,8 +118,8 @@ class Type(ABC, Generic[CTypeType]):
         cls, typespace: TypeSpace, ctype: CTypeType, name: Optional[str]
     ) -> "Type[CTypeType]":
         if isinstance(ctype, ca.TypeDecl):
-            if isinstance(ctype.type, ca.Struct):
-                ret_cls = StructType
+            if isinstance(ctype.type, (ca.Struct, ca.Union)):
+                ret_cls = StructUnionType
             elif isinstance(ctype.type, ca.IdentifierType):
                 ret_cls = IntegerType
             else:
@@ -151,18 +151,17 @@ class IntegerType(Type[ca.TypeDecl]):
         return IntegerObject(self, memory, addr)
 
 
-class StructType(Type[ca.TypeDecl]):
-    struct: Struct
+class StructUnionType(Type[ca.TypeDecl]):
     fields: dict[str, Tuple[int, StructField]]
 
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl, name: Optional[str]):
-        self.struct = parse_struct(ctype.type, typespace.typemap)
-        super().__init__(typespace, ctype, name, self.struct.size)
+        parsed = parse_struct(ctype.type, typespace.typemap)
+        super().__init__(typespace, ctype, name, parsed.size)
 
         assert is_struct_type(self.ctype, self.typespace.typemap)
 
         self.fields = {}
-        for offset, fields in self.struct.fields.items():
+        for offset, fields in parsed.fields.items():
             for field in fields:
                 self.fields[field.name] = (offset, field)
 
@@ -229,7 +228,7 @@ class IntegerObject(Object[IntegerType]):
         self._memory.write(self._addr, data)
 
 
-class StructUnionObject(Object[StructType]):
+class StructUnionObject(Object[StructUnionType]):
     """Access an object as a struct or union"""
 
     def __repr__(self) -> str:

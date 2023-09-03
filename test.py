@@ -21,4 +21,8 @@ evt_work_t = ts.get("EvtWork")
 evt_work = evt_work_t.make_object(ram, 0x8050_c990)
 print(evt_work.entries[1].id)
 
+union_t = ts.get("TestUnion")
+union = union_t.make_object(ram, 0x8000_0000)
+print(hex(union.asInt.value), hex(union.asChar.value))
+
 ram.save()
