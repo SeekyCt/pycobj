@@ -124,6 +124,8 @@ class Type(ABC, Generic[CTypeType]):
 
 
 class IntegerType(Type[ca.TypeDecl]):
+    """Wrapper for an integer type"""
+
     signed: bool
 
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
@@ -137,6 +139,8 @@ class IntegerType(Type[ca.TypeDecl]):
 
 
 class StructUnionType(Type[ca.TypeDecl]):
+    """Wrapper for a struct or union type"""
+
     fields: dict[str, Tuple[int, StructField]]
 
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
@@ -155,6 +159,8 @@ class StructUnionType(Type[ca.TypeDecl]):
 
 
 class ArrayType(Type[ca.ArrayDecl]):
+    """Wrapper for an array type"""
+
     item_type: Type
     length: int
 
@@ -168,6 +174,8 @@ class ArrayType(Type[ca.ArrayDecl]):
 
 
 class PointerType(Type[ca.PtrDecl]):
+    """Wrapper for a pointer type"""
+
     item_type: Type
 
     def __init__(self, typespace: TypeSpace, ctype: ca.PtrDecl):
@@ -180,6 +188,8 @@ class PointerType(Type[ca.PtrDecl]):
 
 
 class FunctionType(Type[ca.FuncDecl]):
+    """Wrapper for a function type"""
+
     def __init__(self, typespace: TypeSpace, ctype: ca.FuncDecl):
         # TODO: unhardcode size
         super().__init__(typespace, ctype, 4)
@@ -240,12 +250,16 @@ class StructUnionObject(Object[StructUnionType]):
 
 
 class ArrayObject(Object[ArrayType]):
+    """Access an object as an array"""
+
     def __getitem__(self, idx: int) -> Object:
         offset = idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, self._addr + offset)
 
 
 class PointerObject(Object[PointerType]):
+    """Access an object as a pointer"""
+
     @property
     def value(self) -> int:
         data = self._memory.read(self._addr, self._t.size)
