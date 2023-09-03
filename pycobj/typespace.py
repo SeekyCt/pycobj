@@ -81,6 +81,18 @@ class TypeSpace:
 
         return self.ctype_pool[ctype]
 
+    def get_from_var(self, name: str) -> "Type":
+        """Gets the type from a global variable"""
+
+        ctype = self.typemap.var_types.get(name)
+        if ctype is None:
+            raise TypeException(f"Variable {name} not found")
+        ctype = resolve_typedefs(ctype, self.typemap)
+        if ctype not in self.ctype_pool:
+            self._add(ctype)
+        
+        return self.ctype_pool[ctype]
+
 
 class Type(ABC, Generic[CTypeType]):
     """Pycobj wrapper for a type"""
