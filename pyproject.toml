@@ -19,7 +19,8 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 dependencies = [
-    "m2c @ git+https://github.com/matt-kempster/m2c.git@master"
+    "m2c @ git+https://github.com/matt-kempster/m2c.git@master",
+    "dolphin-memory-engine",
 ]
 dynamic = ["version"]
 
