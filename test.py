@@ -19,7 +19,8 @@ map_work.paperAmbColor.g.value += 1
 
 evt_work_t = ts.get("EvtWork")
 evt_work = evt_work_t.make_object(ram, 0x8050_C990)
-print(evt_work.entries[1].id)
+print(evt_work.entries[1].speed)
+evt_work.entries[1].speed.value += 2.5
 
 union_t = ts.get("TestUnion")
 union = union_t.make_object(ram, 0x8000_0000)

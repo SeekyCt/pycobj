@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+import struct
 from typing import Dict, Generic, Optional, Tuple, TypeVar
 
 from pycparser import c_ast as ca
@@ -104,7 +105,12 @@ class Type(ABC, Generic[CTypeType]):
             if isinstance(ctype.type, (ca.Struct, ca.Union)):
                 ret_cls = StructUnionType
             elif isinstance(ctype.type, ca.IdentifierType):
-                ret_cls = IntegerType
+                if any(t in ctype.type.names for t in ("float",  "double")):
+                    ret_cls = FloatType
+                elif "void" in ctype.type.names:
+                    raise NotImplementedError(type(ctype.type))
+                else:
+                    ret_cls = IntegerType
             else:
                 raise NotImplementedError(type(ctype.type))
         elif isinstance(ctype, ca.ArrayDecl):
@@ -136,6 +142,17 @@ class IntegerType(Type[ca.TypeDecl]):
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "IntegerObject":
         return IntegerObject(self, memory, addr)
+
+
+class FloatType(Type[ca.TypeDecl]):
+    """Wrapper for a float type"""
+
+    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
+        size = primitive_size(ctype.type)
+        super().__init__(typespace, ctype, size)
+
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "FloatObject":
+        return FloatObject(self, memory, addr)
 
 
 class StructUnionType(Type[ca.TypeDecl]):
@@ -232,6 +249,25 @@ class IntegerObject(Object[IntegerType]):
     @value.setter
     def value(self, value: int):
         data = int.to_bytes(value, self._t.size, "big", signed=self._t.signed)
+        self._memory.write(self._addr, data)
+
+    def _extra_repr(self) -> Optional[str]:
+        return f" = {self.value}"
+
+
+class FloatObject(Object[IntegerType]):
+    """Access an object as an integer"""
+
+    # TODO: don't assume endian
+
+    @property
+    def value(self) -> float:
+        data = self._memory.read(self._addr, self._t.size)
+        return struct.unpack(">f", data)[0]
+
+    @value.setter
+    def value(self, value: float):
+        data = struct.pack(">f", value)
         self._memory.write(self._addr, data)
 
     def _extra_repr(self) -> Optional[str]:
