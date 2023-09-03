@@ -81,8 +81,8 @@ class Type(ABC, Generic[CTypeType]):
 
     typespace: TypeSpace
     ctype: CTypeType
-    name: Optional[str]
     size: int
+    name: str
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.name})"
@@ -90,8 +90,13 @@ class Type(ABC, Generic[CTypeType]):
     def __init__(self, typespace: TypeSpace, ctype: CTypeType, size: int):
         self.typespace = typespace
         self.ctype = ctype
-        self.name = None
         self.size = size
+
+        if isinstance(self.ctype, ca.TypeDecl):
+            decl = self.ctype
+        else:
+            decl = self.ctype.type
+        self.name = decl.declname
 
     @classmethod
     def new(cls, typespace: TypeSpace, ctype: CTypeType) -> "Type[CTypeType]":
