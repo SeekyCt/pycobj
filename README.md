@@ -10,8 +10,8 @@ Experimental accessing of C data as python objects, based on types from an m2c c
     - [ ] live console memory over network
 - Object types
     - [x] Integers
-    - [ ] Floats
-    - [ ] void
+    - [x] Floats
+    - [ ] Void
     - [x] Structs
     - [x] Unions
     - [ ] Enums
