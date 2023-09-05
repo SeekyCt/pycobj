@@ -251,7 +251,7 @@ class IntegerObject(Object[IntegerType]):
         data = int.to_bytes(value, self._t.size, "big", signed=self._t.signed)
         self._memory.write(self._addr, data)
 
-    def _extra_repr(self) -> Optional[str]:
+    def _extra_repr(self) -> str:
         return f" = {self.value}"
 
 
@@ -270,7 +270,7 @@ class FloatObject(Object[FloatType]):
         data = struct.pack(">f", value)
         self._memory.write(self._addr, data)
 
-    def _extra_repr(self) -> Optional[str]:
+    def _extra_repr(self) -> str:
         return f" = {self.value}"
 
 
@@ -313,7 +313,7 @@ class PointerObject(Object[PointerType]):
         addr = self.value + idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, addr)
 
-    def _extra_repr(self) -> Optional[str]:
+    def _extra_repr(self) -> str:
         return f" = 0x{self.value:x}"
 
 
