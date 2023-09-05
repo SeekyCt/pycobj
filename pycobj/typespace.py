@@ -158,7 +158,7 @@ class FloatType(Type[ca.TypeDecl]):
 class StructUnionType(Type[ca.TypeDecl]):
     """Wrapper for a struct or union type"""
 
-    fields: dict[str, Tuple[int, StructField]]
+    fields: Dict[str, Tuple[int, StructField]]
 
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
         parsed = parse_struct(ctype.type, typespace.typemap)
@@ -255,7 +255,7 @@ class IntegerObject(Object[IntegerType]):
         return f" = {self.value}"
 
 
-class FloatObject(Object[IntegerType]):
+class FloatObject(Object[FloatType]):
     """Access an object as an integer"""
 
     # TODO: don't assume endian
