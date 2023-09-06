@@ -93,10 +93,9 @@ class Type(ABC, Generic[CTypeType]):
         self.ctype = ctype
         self.size = size
 
-        if isinstance(self.ctype, ca.TypeDecl):
-            decl = self.ctype
-        else:
-            decl = self.ctype.type
+        decl = self.ctype
+        while not isinstance(decl, ca.TypeDecl):
+            decl = decl.type
         self.name = decl.declname
 
     @classmethod
