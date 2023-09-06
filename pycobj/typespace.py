@@ -156,9 +156,16 @@ class FloatType(Type[ca.TypeDecl]):
 class EnumType(Type[ca.TypeDecl]):
     """Unfinished"""
 
+    names: Dict[int, str]
+    values: Dict[str, int]
+
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
         size = primitive_size(ctype.type)
         super().__init__(typespace, ctype, size)
+
+        enum = self.typespace.typemap.enums[self.ctype.type]
+        self.names = enum.names
+        self.values = {name: value for value, name in self.names.items()}
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "EnumObject":
         return EnumObject(self, memory, addr)
@@ -305,6 +312,14 @@ class EnumObject(Object[EnumType]):
     def int_value(self, value: int):
         data = int.to_bytes(value, self._t.size, "big")
         self._memory.write(self._addr, data)
+
+    @property
+    def value(self) -> str:
+        return self._t.names[self.int_value]
+
+    @value.setter
+    def value(self, value: str):
+        self.int_value = self._t.values[value]
 
 
 class StructUnionObject(Object[StructUnionType]):

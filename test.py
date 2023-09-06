@@ -38,7 +38,11 @@ mem_work = memory_wp[0]
 print(mem_work.heapStart[0][0])
 
 va_type_t = ts.get("_va_arg_type")
-enum_test = va_type_t.make_object(ram, 0x8000_0000)
-print(hex(enum_test.int_value))
+enum_test = va_type_t.make_object(ram, 0x8000_00C8)
+print(enum_test.int_value)
+enum_test.int_value = 1
+print(enum_test.value)
+enum_test.value = "arg_ARGPOINTER"
+print(enum_test.value)
 
 ram.save()
