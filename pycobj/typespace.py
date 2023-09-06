@@ -1,14 +1,16 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 import struct
-from typing import Dict, Generic, Tuple, TypeVar
+from typing import Dict, Generic, Tuple, TypeVar, Union
 
 from pycparser import c_ast as ca
 from m2c.c_types import (
     CType,
+    Struct,
     TypeMap,
     build_typemap,
     parse_constant_int,
+    parse_struct,
     primitive_size,
     resolve_typedefs,
 )
@@ -39,6 +41,14 @@ class TypeSpace:
     def __init__(self, *contexts: str):
         self.typemap = build_typemap([Path(path) for path in contexts], False)
         self.ctype_pool = {}
+    
+    def parsed_struct(self, struct: Union[ca.Struct, ca.Union]) -> Struct:
+        if struct.name and struct.name in self.typemap.structs:
+            return self.typemap.structs[struct.name]
+        if struct in self.typemap.structs:
+            return self.typemap.structs[struct]
+        return parse_struct(struct, self.typemap)
+
 
     def _from_ctype(self, ctype: CType):
         """Gets the Type for a ctype, creating it if needed"""
@@ -177,7 +187,8 @@ class StructUnionType(Type[ca.TypeDecl]):
     fields: Dict[str, Tuple[int, CType]]
 
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
-        parsed = typespace.typemap.structs[ctype.type]
+        parsed = typespace.parsed_struct(ctype.type)
+
         super().__init__(typespace, ctype, parsed.size)
 
         self.fields = {}

@@ -31,6 +31,7 @@ first_rel = first_rel_t.make_object(ram, 0x8000_30C8)
 print(first_rel)
 relf = first_rel[0]
 print(relf.prolog[0])
+print(relf.next)
 
 memory_wp_t = ts.get_from_var("memory_wp")
 memory_wp = memory_wp_t.make_object(ram, 0x805ae168)
