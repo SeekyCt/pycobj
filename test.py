@@ -32,4 +32,9 @@ print(first_rel)
 relf = first_rel[0]
 print(relf.prolog[0])
 
+memory_wp_t = ts.get_from_var("memory_wp")
+memory_wp = memory_wp_t.make_object(ram, 0x805ae168)
+mem_work = memory_wp[0]
+print(mem_work.heapStart[0][0])
+
 ram.save()

@@ -107,7 +107,7 @@ class Type(ABC, Generic[CTypeType]):
                 if any(t in ctype.type.names for t in ("float",  "double")):
                     ret_cls = FloatType
                 elif "void" in ctype.type.names:
-                    raise NotImplementedError(type(ctype.type))
+                    ret_cls = VoidType
                 else:
                     ret_cls = IntegerType
             else:
@@ -214,6 +214,14 @@ class FunctionType(Type[ca.FuncDecl]):
         return FunctionObject(self, memory, addr)
 
 
+class VoidType(Type[ca.TypeDecl]):
+    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
+        super().__init__(typespace, ctype, 1)
+
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "VoidObject":
+        return VoidObject(self, memory, addr)
+
+
 class Object(ABC, Generic[TypeType]):
     """Instance of a type in a system"""
 
@@ -317,4 +325,8 @@ class PointerObject(Object[PointerType]):
 
 
 class FunctionObject(Object[FunctionType]):
+    pass
+
+
+class VoidObject(Object[VoidType]):
     pass
