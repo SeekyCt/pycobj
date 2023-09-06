@@ -171,7 +171,7 @@ class EnumType(Type[ca.TypeDecl]):
 class StructUnionType(Type[ca.TypeDecl]):
     """Wrapper for a struct or union type"""
 
-    fields: Dict[str, Tuple[int, StructField]]
+    fields: Dict[str, Tuple[int, CType]]
 
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
         parsed = parse_struct(ctype.type, typespace.typemap)
@@ -180,7 +180,7 @@ class StructUnionType(Type[ca.TypeDecl]):
         self.fields = {}
         for offset, fields in parsed.fields.items():
             for field in fields:
-                self.fields[field.name] = (offset, field)
+                self.fields[field.name] = (offset, field.type)
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "StructUnionObject":
         return StructUnionObject(self, memory, addr)
@@ -317,8 +317,8 @@ class StructUnionObject(Object[StructUnionType]):
     def __getattr__(self, name: str) -> Object:
         if name not in self._t.fields:
             raise TypeException(f"{self} has no field {name}")
-        offset, field = self._t.fields[name]
-        t = self._t.typespace.get_from_ctype(field.type)
+        offset, ctype = self._t.fields[name]
+        t = self._t.typespace.get_from_ctype(ctype)
         return t.make_object(self._memory, self._addr + offset)
 
 
