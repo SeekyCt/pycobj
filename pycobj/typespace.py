@@ -1,15 +1,13 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 import struct
-from typing import Dict, Generic, Optional, Tuple, TypeVar
+from typing import Dict, Generic, Tuple, TypeVar
 
 from pycparser import c_ast as ca
 from m2c.c_types import (
     CType,
-    StructField,
     TypeMap,
     build_typemap,
-    is_struct_type,
     parse_constant_int,
     parse_struct,
     primitive_size,
@@ -106,7 +104,7 @@ class Type(ABC, Generic[CTypeType]):
             elif isinstance(ctype.type, (ca.Enum)):
                 ret_cls = EnumType
             elif isinstance(ctype.type, ca.IdentifierType):
-                if any(t in ctype.type.names for t in ("float",  "double")):
+                if any(t in ctype.type.names for t in ("float", "double")):
                     ret_cls = FloatType
                 elif "void" in ctype.type.names:
                     ret_cls = VoidType
@@ -162,7 +160,6 @@ class EnumType(Type[ca.TypeDecl]):
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
         size = primitive_size(ctype.type)
         super().__init__(typespace, ctype, size)
-
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "EnumObject":
         return EnumObject(self, memory, addr)
@@ -295,7 +292,7 @@ class FloatObject(Object[FloatType]):
 
 class EnumObject(Object[EnumType]):
     """Access an object as an enum
-    
+
     Unfinished"""
 
     # TODO: don't assume endian
