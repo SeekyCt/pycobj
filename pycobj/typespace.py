@@ -163,8 +163,6 @@ class StructUnionType(Type[ca.TypeDecl]):
         parsed = parse_struct(ctype.type, typespace.typemap)
         super().__init__(typespace, ctype, parsed.size)
 
-        assert is_struct_type(self.ctype, self.typespace.typemap)
-
         self.fields = {}
         for offset, fields in parsed.fields.items():
             for field in fields:
