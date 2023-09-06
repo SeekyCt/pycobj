@@ -17,4 +17,5 @@ Experimental accessing of C data as python objects, based on types from an m2c c
     - [ ] Enums
     - [x] Pointers
     - [x] Arrays
+    - [x] Functions
     - [ ] Strings

@@ -37,4 +37,8 @@ memory_wp = memory_wp_t.make_object(ram, 0x805ae168)
 mem_work = memory_wp[0]
 print(mem_work.heapStart[0][0])
 
+va_type_t = ts.get("_va_arg_type")
+enum_test = va_type_t.make_object(ram, 0x8000_0000)
+print(hex(enum_test.int_value))
+
 ram.save()

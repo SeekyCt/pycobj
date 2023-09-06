@@ -103,6 +103,8 @@ class Type(ABC, Generic[CTypeType]):
         if isinstance(ctype, ca.TypeDecl):
             if isinstance(ctype.type, (ca.Struct, ca.Union)):
                 ret_cls = StructUnionType
+            elif isinstance(ctype.type, (ca.Enum)):
+                ret_cls = EnumType
             elif isinstance(ctype.type, ca.IdentifierType):
                 if any(t in ctype.type.names for t in ("float",  "double")):
                     ret_cls = FloatType
@@ -111,7 +113,7 @@ class Type(ABC, Generic[CTypeType]):
                 else:
                     ret_cls = IntegerType
             else:
-                raise NotImplementedError(type(ctype.type))
+                raise NotImplementedError(ctype.type)
         elif isinstance(ctype, ca.ArrayDecl):
             ret_cls = ArrayType
         elif isinstance(ctype, ca.PtrDecl):
@@ -152,6 +154,18 @@ class FloatType(Type[ca.TypeDecl]):
 
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "FloatObject":
         return FloatObject(self, memory, addr)
+
+
+class EnumType(Type[ca.TypeDecl]):
+    """Unfinished"""
+
+    def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
+        size = primitive_size(ctype.type)
+        super().__init__(typespace, ctype, size)
+
+
+    def make_object(self, memory: MemoryAccessor, addr: Addr) -> "EnumObject":
+        return EnumObject(self, memory, addr)
 
 
 class StructUnionType(Type[ca.TypeDecl]):
@@ -277,6 +291,24 @@ class FloatObject(Object[FloatType]):
 
     def _extra_repr(self) -> str:
         return f" = {self.value}"
+
+
+class EnumObject(Object[EnumType]):
+    """Access an object as an enum
+    
+    Unfinished"""
+
+    # TODO: don't assume endian
+
+    @property
+    def int_value(self) -> int:
+        data = self._memory.read(self._addr, self._t.size)
+        return int.from_bytes(data, "big")
+
+    @int_value.setter
+    def int_value(self, value: int):
+        data = int.to_bytes(value, self._t.size, "big")
+        self._memory.write(self._addr, data)
 
 
 class StructUnionObject(Object[StructUnionType]):
