@@ -9,7 +9,6 @@ from m2c.c_types import (
     TypeMap,
     build_typemap,
     parse_constant_int,
-    parse_struct,
     primitive_size,
     resolve_typedefs,
 )
@@ -171,7 +170,7 @@ class StructUnionType(Type[ca.TypeDecl]):
     fields: Dict[str, Tuple[int, CType]]
 
     def __init__(self, typespace: TypeSpace, ctype: ca.TypeDecl):
-        parsed = parse_struct(ctype.type, typespace.typemap)
+        parsed = typespace.typemap.structs[ctype.type]
         super().__init__(typespace, ctype, parsed.size)
 
         self.fields = {}
