@@ -46,4 +46,6 @@ print(enum_test.value)
 enum_test.value = "arg_ARGPOINTER"
 print(enum_test.value)
 
+print(ts.enum("arg_ARGPOINTER"))
+
 ram.save()

@@ -83,6 +83,11 @@ class TypeSpace:
         ctype = resolve_typedefs(ctype, self.typemap)
         return self._from_ctype(ctype)
 
+    def enum(self, val_name: str) -> int:
+        """Gets the value of a global enum constant"""
+
+        return self.typemap.enum_values[val_name]
+
 
 class Type(ABC, Generic[CTypeType]):
     """Pycobj wrapper for a type"""
