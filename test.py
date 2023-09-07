@@ -45,6 +45,8 @@ enum_test.int_value = 1
 print(enum_test.value)
 enum_test.value = "arg_ARGPOINTER"
 print(enum_test.value)
+cast_test = ts.get("u32").cast(enum_test)
+print(cast_test)
 
 print(ts.enum("arg_ARGPOINTER"))
 

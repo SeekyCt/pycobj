@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 import struct
-from typing import Dict, Generic, Tuple, TypeVar, Union
+from typing import Dict, Generic, Self, Tuple, TypeVar, Union
 
 from pycparser import c_ast as ca
 from m2c.c_types import (
@@ -112,6 +112,8 @@ class Type(ABC, Generic[CTypeType]):
 
     @classmethod
     def new(cls, typespace: TypeSpace, ctype: CTypeType) -> "Type[CTypeType]":
+        """Creates the Type object for a CType"""
+
         if isinstance(ctype, ca.TypeDecl):
             if isinstance(ctype.type, (ca.Struct, ca.Union)):
                 ret_cls = StructUnionType
@@ -139,7 +141,14 @@ class Type(ABC, Generic[CTypeType]):
 
     @abstractmethod
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "Object":
+        """Creates an object of this type"""
+
         raise NotImplementedError
+
+    def cast(self, object: "Object") -> "Object":
+        """Creates an object of this type at the address of another"""
+
+        return self.make_object(object._memory, object._addr)
 
 
 class IntegerType(Type[ca.TypeDecl]):
