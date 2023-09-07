@@ -41,14 +41,13 @@ class TypeSpace:
     def __init__(self, *contexts: str):
         self.typemap = build_typemap([Path(path) for path in contexts], False)
         self.ctype_pool = {}
-    
+
     def parsed_struct(self, struct: Union[ca.Struct, ca.Union]) -> Struct:
         if struct.name and struct.name in self.typemap.structs:
             return self.typemap.structs[struct.name]
         if struct in self.typemap.structs:
             return self.typemap.structs[struct]
         return parse_struct(struct, self.typemap)
-
 
     def _from_ctype(self, ctype: CType):
         """Gets the Type for a ctype, creating it if needed"""
