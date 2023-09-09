@@ -224,6 +224,9 @@ class ArrayType(Type[ca.ArrayDecl]):
         self.item_type = typespace.get_from_ctype(ctype.type)
         super().__init__(typespace, ctype, self.length * self.item_type.size)
 
+    def __len__(self) -> int:
+        return self.length
+
     def make_object(self, memory: MemoryAccessor, addr: Addr) -> "ArrayObject":
         return ArrayObject(self, memory, addr)
 
@@ -363,6 +366,9 @@ class ArrayObject(Object[ArrayType]):
     def __getitem__(self, idx: int) -> Object:
         offset = idx * self._t.item_type.size
         return self._t.item_type.make_object(self._memory, self._addr + offset)
+
+    def __len__(self) -> int:
+        return len(self._t)
 
 
 class PointerObject(Object[PointerType]):

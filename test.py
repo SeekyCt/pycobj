@@ -11,6 +11,7 @@ wpad_work = wpad_wp[0]
 print(wpad_work)
 print(wpad_work.flags)
 print(wpad_work.unknown_0x4[2])
+print(len(wpad_work.unknown_0x4))
 
 map_work_t = ts.get("MapWork")
 map_work = map_work_t.make_object(ram, 0x8050_BC20)
